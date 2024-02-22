@@ -184,10 +184,9 @@ func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol 
 	//req.Header.Add("sec-fetch-mode", "cors")
 	//req.Header.Add("sec-fetch-site", "same-origin")
 	//req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
-	//req.Header.Add("x-atmosphere-tracking-id", "5ca790a8-5d3e-4fd0-a409-c9cf674e8d84")
-	//req.Header.Add("x-csrf-token", "a9779deb-1889-42a7-af60-9abcedd1a435")
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
 	//req.Header.Add("x-requested-with", "XMLHttpRequest")
-
+	// Fetch csrf document.querySelector('meta[name="csrf"]'))
 	res, err := client.Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -202,6 +201,42 @@ func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol 
 	}
 	fmt.Println(string(body))
 }
+func (i *Identity) FetchCSRF() string {
+	url := "https://dxtrade.ftmo.com/"
+	method := "GET"
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	req.Header.Add("authority", "dxtrade.ftmo.com")
+	req.Header.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+	req.Header.Add("accept-language", "en-US,en;q=0.9")
+	req.Header.Add("cache-control", "no-cache")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	// GET THIS     <meta id="csrf-token" name="csrf" content="2813b206-da5f-4271-8385-51e5c427f47b">
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	if strings.Contains(string(body), "<meta id=\"csrf-token\" name=\"csrf\" content=\"") {
+		csrf := strings.Split(string(body), "<meta id=\"csrf-token\" name=\"csrf\" content=\"")
+		csrf = strings.Split(csrf[1], "\">")
+		return csrf[0]
+	}
+	return ""
+}
 
 //DXTFID="4a5c1792438ca392"; JSESSIONID=D158AB6886F36A59CEFB4FE770D215EF.jvmroute
 
@@ -213,6 +248,7 @@ func main() {
 	}
 	identity.login()
 	positions := identity.GetTransactions()
+	fmt.Println(identity.FetchCSRF())
 	for _, v := range positions.Body {
 		// Divide everything by 1000
 		fmt.Println(v.Uid)
@@ -228,7 +264,7 @@ type Positions struct {
 			InstrumentId int    `json:"instrumentId"`
 			PositionCode string `json:"positionCode"`
 		} `json:"positionKey"`
-		Quantity     int         `json:"quantity"`
+		Quantity     float64     `json:"quantity"`
 		Cost         float64     `json:"cost"`
 		CostBasis    float64     `json:"costBasis"`
 		MarginRate   float64     `json:"marginRate"`
