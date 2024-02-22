@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"io/ioutil"
 	"net/http"
@@ -128,20 +129,29 @@ type ExecutePayload struct {
 	LimitPrice  float64 `json:"limitPrice"`
 	OrderSide   string  `json:"orderSide"`
 	OrderType   string  `json:"orderType"`
-	Quantity    int     `json:"quantity"`
+	Quantity    float64 `json:"quantity"`
 	RequestId   string  `json:"requestId"`
 	TimeInForce string  `json:"timeInForce"`
 }
 
-func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol string, instrumentId int) {
+func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, symbol string, instrumentId int) {
 	var executePayload ExecutePayload
+	executePayload.DirectExchange = false
+	executePayload.Legs = make([]struct {
+		InstrumentId   int    `json:"instrumentId"`
+		PositionEffect string `json:"positionEffect"`
+		RatioQuantity  int    `json:"ratioQuantity"`
+		Symbol         string `json:"symbol"`
+	}, 1)
+
+	// The generated request ID gwt-uid-931-08b3a3e1-5e92-4db9-9b32-049777c03e17
 	executePayload.Legs[0].Symbol = symbol
 	executePayload.Legs[0].InstrumentId = instrumentId
-	executePayload.Legs[0].PositionEffect = "OPEN"
+	executePayload.Legs[0].PositionEffect = "OPENING"
 	executePayload.Legs[0].RatioQuantity = 1
 	switch Price {
 	case 0:
-		executePayload.DirectExchange = true
+		executePayload.DirectExchange = false
 		executePayload.LimitPrice = Price
 	default:
 		executePayload.DirectExchange = false
@@ -154,14 +164,17 @@ func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol 
 	case SELL:
 		executePayload.OrderSide = "SELL"
 	}
-
+	executePayload.Quantity = Quantity
+	executePayload.TimeInForce = "GTC"
+	//931-08b3a3e1-5e92-4db9-9b32-049777c03e17
+	executePayload.RequestId = "gwt-uid-931-" + uuid.New().String()
 	url := "https://dxtrade.ftmo.com/api/orders/single"
 	method := "POST"
 
-	payload := strings.NewReader(``)
-
+	payload, err := json.Marshal(executePayload)
+	fmt.Println(string(payload))
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, payload)
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 
 	if err != nil {
 		fmt.Println(err)
@@ -173,19 +186,19 @@ func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol 
 	req.Header.Add("cache-control", "no-cache")
 	req.Header.Add("content-type", "application/json; charset=UTF-8")
 	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	//req.Header.Add("dnt", "1")
-	//req.Header.Add("origin", "https://dxtrade.ftmo.com")
-	//req.Header.Add("pragma", "no-cache")
-	//req.Header.Add("referer", "https://dxtrade.ftmo.com/")
-	//req.Header.Add("sec-ch-ua", "\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"")
-	//req.Header.Add("sec-ch-ua-mobile", "?0")
-	//req.Header.Add("sec-ch-ua-platform", "\"macOS\"")
-	//req.Header.Add("sec-fetch-dest", "empty")
-	//req.Header.Add("sec-fetch-mode", "cors")
-	//req.Header.Add("sec-fetch-site", "same-origin")
-	//req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
+	req.Header.Add("dnt", "1")
+	req.Header.Add("origin", "https://dxtrade.ftmo.com")
+	req.Header.Add("pragma", "no-cache")
+	req.Header.Add("referer", "https://dxtrade.ftmo.com/")
+	req.Header.Add("sec-ch-ua", "\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"")
+	req.Header.Add("sec-ch-ua-mobile", "?0")
+	req.Header.Add("sec-ch-ua-platform", "\"macOS\"")
+	req.Header.Add("sec-fetch-dest", "empty")
+	req.Header.Add("sec-fetch-mode", "cors")
+	req.Header.Add("sec-fetch-site", "same-origin")
+	req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
 	req.Header.Add("x-csrf-token", i.FetchCSRF())
-	//req.Header.Add("x-requested-with", "XMLHttpRequest")
+	req.Header.Add("x-requested-with", "XMLHttpRequest")
 	// Fetch csrf document.querySelector('meta[name="csrf"]'))
 	res, err := client.Do(req)
 	if err != nil {
@@ -193,13 +206,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity int, Price float64, symbol 
 		return
 	}
 	defer res.Body.Close()
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Println(string(body))
+	fmt.Println(res.Status)
 }
 func (i *Identity) FetchCSRF() string {
 	url := "https://dxtrade.ftmo.com/"
@@ -230,8 +237,8 @@ func (i *Identity) FetchCSRF() string {
 		fmt.Println(err)
 		return ""
 	}
-	if strings.Contains(string(body), "<meta id=\"csrf-token\" name=\"csrf\" content=\"") {
-		csrf := strings.Split(string(body), "<meta id=\"csrf-token\" name=\"csrf\" content=\"")
+	if strings.Contains(string(body), "name=\"csrf\" content=\"") {
+		csrf := strings.Split(string(body), "name=\"csrf\" content=\"")
 		csrf = strings.Split(csrf[1], "\">")
 		return csrf[0]
 	}
@@ -247,12 +254,8 @@ func main() {
 		Server:   "ftmo",
 	}
 	identity.login()
-	positions := identity.GetTransactions()
 	fmt.Println(identity.FetchCSRF())
-	for _, v := range positions.Body {
-		// Divide everything by 1000
-		fmt.Println(v.Uid)
-	}
+	identity.ExecuteOrder(BUY, 0.01, 0, "US30.cash", US30)
 }
 
 type Positions struct {
