@@ -1,4 +1,4 @@
-module github.com/zLeki/DXTrade-Go
+module github.com/zLeki/DxTrade-Api-Go
 
 go 1.21.0
 
