@@ -1,4 +1,4 @@
-package DXTrade_Go
+package dx
 
 import (
 	"bytes"
