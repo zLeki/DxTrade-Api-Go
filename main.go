@@ -115,7 +115,7 @@ func (i *Identity) Buy(Quantity float64, Price float64, symbol string, instrumen
 	i.ExecuteOrder(BUY, Quantity, Price, symbol, instrumentId)
 }
 func (i *Identity) Sell(Quantity float64, Price float64, symbol string, instrumentId int) {
-	i.ExecuteOrder(SELL, Quantity, Price, symbol, instrumentId)
+	i.ExecuteOrder(SELL, -Quantity, Price, symbol, instrumentId)
 }
 
 type ExecutePayload struct {
