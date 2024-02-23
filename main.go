@@ -19,6 +19,17 @@ type Identity struct {
 }
 
 const (
+	GBPUSD = 3440
+	EURUSD = 3438
+	USDJPY = 3427
+	EURGBP = 3419
+	USDCAD = 3433
+	USDCHF = 3390
+	AUDUSD = 3411
+	NZDUSD = 3398
+	EURJPY = 3392
+	AUDCHF = 3395
+	XAUUSD = 3406
 	US30 = 3351
 )
 const (
