@@ -1,4 +1,4 @@
-package main
+package DXTrade_Go
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 )
 
 type Identity struct {
@@ -281,18 +280,6 @@ func (i *Identity) FetchCSRF() string {
 }
 
 //DXTFID="4a5c1792438ca392"; JSESSIONID=D158AB6886F36A59CEFB4FE770D215EF.jvmroute
-
-func main() {
-	identity := Identity{
-		Username: "1210003069",
-		Password: "2K2=WJ3^6rj5",
-		Server:   "ftmo",
-	}
-	identity.login()
-	identity.ExecuteOrder(BUY, 0.01, MARKET, "US30.cash", US30)
-	time.Sleep(5 * time.Second)
-	identity.CloseAllPositions()
-}
 
 type ClosePosition struct {
 	Legs []struct {
