@@ -7,8 +7,8 @@ import (
 
 func main() {
 	identity := dx.Identity{
-		Username: "1210003069",
-		Password: "2K2=WJ3^6rj5",
+		Username: "Username",
+		Password: "Password",
 		Server:   "ftmo",
 	}
 	identity.Login()
