@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Identity struct {
@@ -24,6 +25,7 @@ const (
 const (
 	BUY = iota
 	SELL
+	MARKET = -1
 )
 
 func (i *Identity) login() {
@@ -67,7 +69,6 @@ func (i *Identity) login() {
 	}
 	i.EstablishHandshake()
 }
-
 func (i *Identity) GetTransactions() *Positions {
 	inc_msg := strings.Split(i.EstablishHandshake("POSITIONS"), "|")
 	if len(inc_msg) < 2 {
@@ -111,11 +112,11 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 	}
 	return ""
 }
-func (i *Identity) Buy() {
-
+func (i *Identity) Buy(Quantity float64, Price float64, symbol string, instrumentId int) {
+	i.ExecuteOrder(BUY, Quantity, Price, symbol, instrumentId)
 }
-func (i *Identity) Sell() {
-
+func (i *Identity) Sell(Quantity float64, Price float64, symbol string, instrumentId int) {
+	i.ExecuteOrder(SELL, Quantity, Price, symbol, instrumentId)
 }
 
 type ExecutePayload struct {
@@ -134,6 +135,58 @@ type ExecutePayload struct {
 	TimeInForce string  `json:"timeInForce"`
 }
 
+func (i *Identity) CloseAllPositions() {
+	positions := i.GetTransactions()
+	for _, position := range positions.Body {
+		i.ClosePosition(position.PositionKey.PositionCode, position.Quantity, 0, position.PositionKey.PositionCode, position.PositionKey.InstrumentId)
+	}
+}
+func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price float64, symbol string, instrumentId int) {
+	url := "https://dxtrade.ftmo.com/api/positions/close"
+	method := "POST"
+	var payload ClosePosition
+	legs := make([]struct {
+		InstrumentId   int    `json:"instrumentId"`
+		PositionCode   string `json:"positionCode"`
+		PositionEffect string `json:"positionEffect"`
+		RatioQuantity  int    `json:"ratioQuantity"`
+		Symbol         string `json:"symbol"`
+	}, 1)
+	legs[0].InstrumentId = instrumentId
+	legs[0].PositionCode = PositionId
+	legs[0].PositionEffect = "CLOSING"
+	legs[0].RatioQuantity = 1
+	legs[0].Symbol = symbol
+	payload.Legs = legs
+	payload.LimitPrice = 0
+	payload.OrderType = "MARKET"
+	payload.Quantity = -Quantity
+	payload.TimeInForce = "GTC"
+	client := &http.Client{}
+	payloadJson, err := json.Marshal(payload)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payloadJson))
+
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	req.Header.Add("content-type", "application/json; charset=UTF-8")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
+	req.Header.Add("x-requested-with", "XMLHttpRequest")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer res.Body.Close()
+	fmt.Println(res.Status)
+}
 func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, symbol string, instrumentId int) {
 	var executePayload ExecutePayload
 	executePayload.DirectExchange = false
@@ -150,7 +203,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	executePayload.Legs[0].PositionEffect = "OPENING"
 	executePayload.Legs[0].RatioQuantity = 1
 	switch Price {
-	case 0:
+	case -1:
 		executePayload.DirectExchange = false
 		executePayload.LimitPrice = Price
 	default:
@@ -172,31 +225,14 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	method := "POST"
 
 	payload, err := json.Marshal(executePayload)
-	fmt.Println(string(payload))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
-
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	req.Header.Add("authority", "dxtrade.ftmo.com")
-	req.Header.Add("accept", "*/*")
-	req.Header.Add("accept-language", "en-US,en;q=0.9")
-	req.Header.Add("cache-control", "no-cache")
 	req.Header.Add("content-type", "application/json; charset=UTF-8")
 	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	req.Header.Add("dnt", "1")
-	req.Header.Add("origin", "https://dxtrade.ftmo.com")
-	req.Header.Add("pragma", "no-cache")
-	req.Header.Add("referer", "https://dxtrade.ftmo.com/")
-	req.Header.Add("sec-ch-ua", "\"Chromium\";v=\"121\", \"Not A(Brand\";v=\"99\"")
-	req.Header.Add("sec-ch-ua-mobile", "?0")
-	req.Header.Add("sec-ch-ua-platform", "\"macOS\"")
-	req.Header.Add("sec-fetch-dest", "empty")
-	req.Header.Add("sec-fetch-mode", "cors")
-	req.Header.Add("sec-fetch-site", "same-origin")
-	req.Header.Add("user-agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36")
 	req.Header.Add("x-csrf-token", i.FetchCSRF())
 	req.Header.Add("x-requested-with", "XMLHttpRequest")
 	// Fetch csrf document.querySelector('meta[name="csrf"]'))
@@ -206,7 +242,6 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 		return
 	}
 	defer res.Body.Close()
-	fmt.Println(res.Status)
 }
 func (i *Identity) FetchCSRF() string {
 	url := "https://dxtrade.ftmo.com/"
@@ -254,10 +289,24 @@ func main() {
 		Server:   "ftmo",
 	}
 	identity.login()
-	fmt.Println(identity.FetchCSRF())
-	identity.ExecuteOrder(BUY, 0.01, 0, "US30.cash", US30)
+	identity.ExecuteOrder(BUY, 0.01, MARKET, "US30.cash", US30)
+	time.Sleep(5 * time.Second)
+	identity.CloseAllPositions()
 }
 
+type ClosePosition struct {
+	Legs []struct {
+		InstrumentId   int    `json:"instrumentId"`
+		PositionCode   string `json:"positionCode"`
+		PositionEffect string `json:"positionEffect"`
+		RatioQuantity  int    `json:"ratioQuantity"`
+		Symbol         string `json:"symbol"`
+	} `json:"legs"`
+	LimitPrice  int     `json:"limitPrice"`
+	OrderType   string  `json:"orderType"`
+	Quantity    float64 `json:"quantity"`
+	TimeInForce string  `json:"timeInForce"`
+}
 type Positions struct {
 	AccountId string `json:"accountId"`
 	Body      []struct {
