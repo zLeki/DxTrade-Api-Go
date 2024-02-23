@@ -27,7 +27,7 @@ const (
 	MARKET = -1
 )
 
-func (i *Identity) login() {
+func (i *Identity) Login() {
 
 	url := "https://dxtrade.ftmo.com/api/auth/login"
 	method := "POST"
@@ -204,7 +204,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	switch Price {
 	case -1:
 		executePayload.DirectExchange = false
-		executePayload.LimitPrice = Price
+		executePayload.LimitPrice = 0
 	default:
 		executePayload.DirectExchange = false
 		executePayload.LimitPrice = 0
@@ -224,6 +224,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	method := "POST"
 
 	payload, err := json.Marshal(executePayload)
+	fmt.Println(string(payload))
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
@@ -239,6 +240,11 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	if err != nil {
 		fmt.Println(err)
 		return
+	}
+	if res.StatusCode != http.StatusOK {
+		body, _ := ioutil.ReadAll(res.Body)
+		fmt.Println(string(body))
+		fmt.Println(req.Header)
 	}
 	defer res.Body.Close()
 }
@@ -266,7 +272,7 @@ func (i *Identity) FetchCSRF() string {
 	defer res.Body.Close()
 
 	body, err := ioutil.ReadAll(res.Body)
-	// GET THIS     <meta id="csrf-token" name="csrf" content="2813b206-da5f-4271-8385-51e5c427f47b">
+	// GET THIS     <meta id="csrf-token" name="csrf" content="">
 	if err != nil {
 		fmt.Println(err)
 		return ""
@@ -278,8 +284,6 @@ func (i *Identity) FetchCSRF() string {
 	}
 	return ""
 }
-
-//DXTFID="4a5c1792438ca392"; JSESSIONID=D158AB6886F36A59CEFB4FE770D215EF.jvmroute
 
 type ClosePosition struct {
 	Legs []struct {
