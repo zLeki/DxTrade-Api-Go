@@ -1,5 +1,5 @@
 package dx
-
+//TODO: Error management, Universal HTTP function
 import (
 	"bytes"
 	"encoding/json"
