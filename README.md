@@ -16,6 +16,7 @@ The FIRST (usable) API for Dxtrade
 ## To-Do List
 
 - [x] **More Currency Pairs:** Currently, only us30 is supported. Expand to include more currency pairs.
+- [ ] **More Methods:** As of now, only the features above exist, it is important to implement more in the future like editing existing orders, setting tp/sl, etc
 - [ ] Quicker Execution:** Implement faster execution using Go routines (low priority)
 
 ## Contribution
