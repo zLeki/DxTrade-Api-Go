@@ -1,7 +1,8 @@
 # Dxtrade API
 
 The FIRST (usable) API for Dxtrade
-
+## Demo in action
+<img src="https://imgur.com/O960lKN.gif">
 ## Features
 
 - **Buy:** Execute buy orders
