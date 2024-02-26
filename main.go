@@ -40,7 +40,7 @@ const (
 
 func (i *Identity) Login() {
 
-	url := "https://dxtrade.ftmo.com/api/auth/login"
+	url := "https://dxtrade."+i.Server+".com/api/auth/login"
 	method := "POST"
 
 	payload, err := json.Marshal(i)
@@ -55,7 +55,7 @@ func (i *Identity) Login() {
 		fmt.Println(err)
 		return
 	}
-	req.Header.Add("authority", "dxtrade.ftmo.com")
+	req.Header.Add("authority", "dxtrade."+i.Server+".com")
 	req.Header.Add("accept", "*/*")
 	req.Header.Add("accept-language", "en-US,en;q=0.9")
 	req.Header.Add("cache-control", "no-cache")
@@ -103,7 +103,7 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 	dialer := websocket.Dialer{}
 	headers := http.Header{}
 	headers.Add("Cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	conn, _, err := dialer.Dial("wss://dxtrade.ftmo.com/client/connector?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3.2-javascript&X-Atmosphere-Transport=websocket&X-Atmosphere-TrackMessageSize=true&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-atmo-protocol=true&sessionState=dx-new&guest-mode=false", headers)
+	conn, _, err := dialer.Dial("wss://dxtrade."+i.Server+".com/client/connector?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3.2-javascript&X-Atmosphere-Transport=websocket&X-Atmosphere-TrackMessageSize=true&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-atmo-protocol=true&sessionState=dx-new&guest-mode=false", headers)
 	if err != nil {
 		fmt.Println(err)
 		return ""
@@ -152,7 +152,7 @@ func (i *Identity) CloseAllPositions() {
 	}
 }
 func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price float64, symbol string, instrumentId int) {
-	url := "https://dxtrade.ftmo.com/api/positions/close"
+	url := "https://dxtrade."+i.Server+".com/api/positions/close"
 	method := "POST"
 	var payload ClosePosition
 	legs := make([]struct {
@@ -231,7 +231,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	executePayload.TimeInForce = "GTC"
 	//931-08b3a3e1-5e92-4db9-9b32-049777c03e17
 	executePayload.RequestId = "gwt-uid-931-" + uuid.New().String()
-	url := "https://dxtrade.ftmo.com/api/orders/single"
+	url := "https://dxtrade."+i.Server+".com/api/orders/single"
 	method := "POST"
 
 	payload, err := json.Marshal(executePayload)
@@ -260,7 +260,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity float64, Price float64, sym
 	defer res.Body.Close()
 }
 func (i *Identity) FetchCSRF() string {
-	url := "https://dxtrade.ftmo.com/"
+	url := "https://dxtrade."+i.Server+".com/"
 	method := "GET"
 
 	client := &http.Client{}
@@ -270,7 +270,7 @@ func (i *Identity) FetchCSRF() string {
 		fmt.Println(err)
 		return ""
 	}
-	req.Header.Add("authority", "dxtrade.ftmo.com")
+	req.Header.Add("authority", "dxtrade."+i.Server+".com")
 	req.Header.Add("accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
 	req.Header.Add("accept-language", "en-US,en;q=0.9")
 	req.Header.Add("cache-control", "no-cache")
