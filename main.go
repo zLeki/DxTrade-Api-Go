@@ -532,7 +532,7 @@ func (i *Identity) GetOrders() *Order {
 	}
 	return orders
 }
-func (i *Identity) GetInstrumens() *GetInstruments {
+func (i *Identity) GetInstruments() *GetInstruments {
 	instrument_str := strings.Split(i.EstablishHandshake("Euro vs United States Dollar"), "|")[1]
 	var instruments *GetInstruments
 	err := json.Unmarshal([]byte(instrument_str), &instruments)
