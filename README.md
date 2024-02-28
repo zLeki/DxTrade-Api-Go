@@ -1,5 +1,3 @@
-<img src="https://i.imgur.com/O4RouGO.png">
-
 # Dxtrade API
 The FIRST (usable) API for Dxtrade
 ## Demo in action
