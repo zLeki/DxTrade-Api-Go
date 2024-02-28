@@ -19,7 +19,7 @@ type Identity struct {
 	Cookies   map[string]string
 }
 
-const (
+const ( // ill get rid of this in the future
 	ETHUSD     = 3443
 	BTCUSD     = 3425
 	XRPUSD     = 3404
