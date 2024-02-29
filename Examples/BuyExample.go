@@ -1,14 +1,15 @@
 package main
 
-import "github.com/zLeki/DxTrade-Api-Go"
+import (
+	"github.com/zLeki/DxTrade-Api-Go"
+)
 
 func main() {
 	identity := dx.Identity{
-		Username: "Username",
-		Password: "Password",
-		Server:   "ftmo", // Or your desired prop firm
+		Username: "USERNAME",
+		Password: "PASSWORD",
+		Server:   "ftmo",
 	}
 	identity.Login()
-	// Do Buy or Sell for your desired position
-	identity.Buy(0.01, dx.MARKET, "US30.cash", dx.US30) // You must enter both the symbol and the designated id
+	identity.Buy(1500, dx.MARKET, 0, 0, "USDJPY", dx.USDJPY)
 }
