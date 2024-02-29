@@ -19,7 +19,7 @@ type Identity struct {
 	Cookies   map[string]string
 }
 
-const ( // ill get rid of this in the future
+const (
 	ETHUSD     = 3443
 	BTCUSD     = 3425
 	XRPUSD     = 3404
@@ -383,7 +383,6 @@ func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price floa
 	payload.TimeInForce = "GTC"
 	client := &http.Client{}
 	payloadJson, err := json.Marshal(payload)
-	fmt.Println(string(payloadJson))
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -462,7 +461,9 @@ func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLos
 	method := "POST"
 
 	payload, err := json.Marshal(executePayload)
-	fmt.Println(string(payload))
+	if StopLoss == 0 && TakeProfit == 0 {
+		payload = []byte(strings.ReplaceAll(string(payload), ",\"stopLoss\":{\"fixedOffset\":0,\"fixedPrice\":0,\"orderType\":\"\",\"priceFixed\":false,\"quantityForProtection\":0,\"removed\":false},\"takeProfit\":{\"fixedOffset\":0,\"fixedPrice\":0,\"orderType\":\"\",\"priceFixed\":false,\"quantityForProtection\":0,\"removed\":false}", ""))
+	}
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
 	if err != nil {
@@ -480,9 +481,8 @@ func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLos
 		return
 	}
 	if res.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(res.Body)
-		fmt.Println(string(body))
 		fmt.Println(req.Header)
+		fmt.Println(string(payload), res.Status)
 	}
 	defer res.Body.Close()
 }
