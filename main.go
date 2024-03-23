@@ -1,14 +1,18 @@
-package dx
+package dx // dx
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 type Identity struct {
@@ -17,6 +21,7 @@ type Identity struct {
 	Server    string `json:"vendor"`
 	AccountId int    `json:"accountId"`
 	Cookies   map[string]string
+	Csrf      string
 }
 
 const (
@@ -260,8 +265,7 @@ func (i *Identity) Login() {
 		return
 	}
 	defer res.Body.Close()
-
-	_, err = ioutil.ReadAll(res.Body)
+	_, err = io.ReadAll(res.Body)
 	if err != nil {
 		fmt.Println(err)
 		return
@@ -607,6 +611,118 @@ func (i *Identity) CancelAllOrders() {
 	}
 
 }
+func (i *Identity) CandleStickProcess(symbol string) (*CandleStickData, error) {
+retry:
+	var dataStr string
+	timeStart := time.Now()
+	go func() {
+		dataStr = i.EstablishHandshake("BigChartComponentPresenter")
+		if strings.Contains(dataStr, "BigChartComponentPresenter") {
+			dataStr = strings.Split(dataStr, "|")[1]
+		} else {
+			dataStr = "err"
+		}
+	}()
+	i.EstablishHandshake("INSTRUMENT_METRICS")
+	url := "https://dxtrade.ftmo.com/api/instruments/subscribeInstrumentSymbols"
+	method := "PUT"
+
+	payload := strings.NewReader(`{"instruments":["` + symbol + `"]}`)
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	req.Header.Add("accept", "*/*")
+	req.Header.Add("accept-language", "en-US,en;q=0.9")
+	req.Header.Add("cache-control", "no-cache")
+	req.Header.Add("content-type", "application/json; charset=UTF-8")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer res.Body.Close()
+	url = "https://dxtrade.ftmo.com/api/charts"
+	method = "PUT"
+
+	payload = strings.NewReader(`{"chartIds":[],"requests":[{"aggregationPeriodSeconds":300,"extendedSession":true,"forexPriceField":"bid","id":0,"maxBarsCount":3500,"range":345600,"studySubscription":[],"subtopic":"BigChartComponentPresenter-4","symbol":"` + symbol + `"}]}`)
+
+	client = &http.Client{}
+	req, err = http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	req.Header.Add("accept", "*/*")
+	req.Header.Add("accept-language", "en-US,en;q=0.9")
+	req.Header.Add("cache-control", "no-cache")
+	req.Header.Add("content-type", "application/json; charset=UTF-8")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
+	req.Header.Add("x-requested-with", "XMLHttpRequest")
+	res, err = client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	defer res.Body.Close()
+	for {
+		if dataStr != "" {
+			if strings.Contains(dataStr, "BigChartComponentPresenter") {
+				var candleData *CandleStickData
+				err := json.Unmarshal([]byte(dataStr), &candleData)
+				if err != nil {
+					fmt.Println(err)
+					return nil, err
+				}
+				return candleData, nil
+			} else if dataStr == "err" {
+				return nil, errors.New("error fetching data")
+			}
+			break
+		}
+		if time.Since(timeStart) > 6500*time.Millisecond {
+			log.Println("TIMEOUT")
+			goto retry
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return nil, errors.New("error fetching data")
+}
+func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
+	var retrievedData *CandleStickData
+	for interval := 0; interval < 10; interval++ {
+		go func() {
+			fmt.Println("THREAD SPAWNED")
+			data, err := i.CandleStickProcess(sym)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				retrievedData = data
+			}
+
+		}()
+	}
+	for {
+		if retrievedData != nil {
+			return retrievedData
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	/*
+		Candlestick data is in a slice under the data key ranging from the oldest to the newest data available by candle
+		I'm not sure what the timeframe is
+	*/
+
+}
+
 
 // Couldnt get it to work, some weird api update but if you want to give it a shot you need to be able to find the refOrderChainId
 //
@@ -749,14 +865,14 @@ func (i *Identity) CancelAllOrders() {
 type PositionMetrix struct {
 	AccountId string `json:"accountId"`
 	Body      []struct {
-		Uid              string      `json:"uid"`
-		AccountId        string      `json:"accountId"`
-		Margin           float64     `json:"margin"`
-		PlOpen           float64     `json:"plOpen"`
-		PlClosed         int         `json:"plClosed"`
-		TotalCommissions interface{} `json:"totalCommissions"`
-		TotalFinancing   float64     `json:"totalFinancing"`
-		PlRate           float64     `json:"plRate"`
+		Uid              string  `json:"uid"`
+		AccountId        string  `json:"accountId"`
+		Margin           float64 `json:"margin"`
+		PlOpen           float64 `json:"plOpen"`
+		PlClosed         int     `json:"plClosed"`
+		TotalCommissions float64 `json:"totalCommissions"`
+		TotalFinancing   float64 `json:"totalFinancing"`
+		PlRate           float64 `json:"plRate"`
 	} `json:"body"`
 	Type string `json:"type"`
 }
@@ -969,4 +1085,28 @@ type Body []struct {
 	ActualWithinTradingDay   bool        `json:"actualWithinTradingDay"`
 	Route                    interface{} `json:"route"`
 	OpeningPositionCostBasis int         `json:"openingPositionCostBasis"`
+}
+type CandleStickData struct {
+	AccountID any `json:"accountId"`
+	Body      struct {
+		Subtopic               string `json:"subtopic"`
+		HistoryData            bool   `json:"historyData"`
+		HistoryDataSnapshotEnd bool   `json:"historyDataSnapshotEnd"`
+		Data                   []struct {
+			Timestamp     int64   `json:"timestamp"`
+			Open          float64 `json:"open"`
+			High          float64 `json:"high"`
+			Low           float64 `json:"low"`
+			Close         float64 `json:"close"`
+			ImpVolatility string  `json:"impVolatility"`
+			Vwap          float64 `json:"vwap"`
+			Volume        int     `json:"volume"`
+			Expansion     bool    `json:"expansion"`
+			Visible       bool    `json:"visible"`
+			StudyValues   any     `json:"studyValues"`
+			Time          int64   `json:"time"`
+		} `json:"data"`
+		RequestID int `json:"requestId"`
+	} `json:"body"`
+	Type string `json:"type"`
 }
