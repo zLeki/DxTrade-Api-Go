@@ -700,7 +700,6 @@ func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
 	var retrievedData *CandleStickData
 	for interval := 0; interval < 10; interval++ {
 		go func() {
-			fmt.Println("THREAD SPAWNED")
 			data, err := i.CandleStickProcess(sym)
 			if err != nil {
 				fmt.Println(err)
