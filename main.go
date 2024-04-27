@@ -887,7 +887,7 @@ type AccountData struct {
 			CashBalance      float64 `json:"cashBalance"`
 			Equity           float64 `json:"equity"`
 			ConversionRate   int     `json:"conversionRate"`
-			ReverseRiskLevel float64 `json:"reverseRiskLevel"`
+			ReverseRiskLevel interface{} `json:"reverseRiskLevel"`
 			InitialMargin    float64 `json:"initialMargin"`
 		} `json:"allMetrics"`
 	} `json:"body"`
