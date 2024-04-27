@@ -881,7 +881,7 @@ type AccountData struct {
 		AccountId  string `json:"accountId"`
 		AllMetrics struct {
 			AvailableFunds   float64 `json:"availableFunds"`
-			MarginCallLevel  float64 `json:"marginCallLevel"`
+			MarginCallLevel  interface{} `json:"marginCallLevel"`
 			RiskLevel        float64 `json:"riskLevel"`
 			OpenPl           float64 `json:"openPl"`
 			CashBalance      float64 `json:"cashBalance"`
