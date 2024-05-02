@@ -313,6 +313,7 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 			fmt.Println(err)
 			return ""
 		}
+		fmt.Println(string(message))
 		if strings.Contains(string(message), kill) {
 			return string(message)
 		}
@@ -611,6 +612,36 @@ func (i *Identity) CancelAllOrders() {
 	}
 
 }
+func (i *Identity) TradeHistory() []TradeHistory {
+	url := "https://dxtrade.ftmo.com/api/history?from=1708664400000&to=1714708799999&orderId="
+	method := "POST"
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, nil)
+
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	req.Header.Add("content-type", "application/json; charset=UTF-8")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
+	req.Header.Add("x-requested-with", "XMLHttpRequest")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	defer res.Body.Close()
+	var tradeHistory []TradeHistory
+	err = json.NewDecoder(res.Body).Decode(&tradeHistory)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
+	return tradeHistory
+}
 func (i *Identity) CandleStickProcess(symbol string) (*CandleStickData, error) {
 retry:
 	var dataStr string
@@ -722,6 +753,7 @@ func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
 
 }
 
+// Identical to the one above but with a different return type
 
 // Couldnt get it to work, some weird api update but if you want to give it a shot you need to be able to find the refOrderChainId
 //
@@ -880,15 +912,15 @@ type AccountData struct {
 	Body      struct {
 		AccountId  string `json:"accountId"`
 		AllMetrics struct {
-			AvailableFunds   float64 `json:"availableFunds"`
+			AvailableFunds   float64     `json:"availableFunds"`
 			MarginCallLevel  interface{} `json:"marginCallLevel"`
-			RiskLevel        float64 `json:"riskLevel"`
-			OpenPl           float64 `json:"openPl"`
-			CashBalance      float64 `json:"cashBalance"`
-			Equity           float64 `json:"equity"`
-			ConversionRate   int     `json:"conversionRate"`
+			RiskLevel        float64     `json:"riskLevel"`
+			OpenPl           float64     `json:"openPl"`
+			CashBalance      float64     `json:"cashBalance"`
+			Equity           float64     `json:"equity"`
+			ConversionRate   int         `json:"conversionRate"`
 			ReverseRiskLevel interface{} `json:"reverseRiskLevel"`
-			InitialMargin    float64 `json:"initialMargin"`
+			InitialMargin    float64     `json:"initialMargin"`
 		} `json:"allMetrics"`
 	} `json:"body"`
 	Type string `json:"type"`
@@ -1108,4 +1140,71 @@ type CandleStickData struct {
 		RequestID int `json:"requestId"`
 	} `json:"body"`
 	Type string `json:"type"`
+}
+type TradeHistory struct {
+	Id                string      `json:"id"`
+	SequenceNumber    int         `json:"sequenceNumber"`
+	OrderChainId      string      `json:"orderChainId"`
+	AccountId         string      `json:"accountId"`
+	LastStatusChange  int64       `json:"lastStatusChange"`
+	Symbol            string      `json:"symbol"`
+	Status            string      `json:"status"`
+	Quantity          float64     `json:"quantity"`
+	RemainingQuantity float64     `json:"remainingQuantity"`
+	FilledQuantity    interface{} `json:"filledQuantity"`
+	Type              string      `json:"type"`
+	TriggerPrice      string      `json:"triggerPrice"`
+	FillPrice         interface{} `json:"fillPrice"`
+	Price             string      `json:"price"`
+	AccountCode       string      `json:"accountCode"`
+	TakeProfitPrice   string      `json:"takeProfitPrice"`
+	ExpireAt          interface{} `json:"expireAt"`
+	TimeInForce       string      `json:"timeInForce"`
+	StopLossPrice     string      `json:"stopLossPrice"`
+	Commission        struct {
+	} `json:"commission"`
+	Side         string      `json:"side"`
+	RejectReason interface{} `json:"rejectReason"`
+	Instrument   struct {
+		Id                int     `json:"id"`
+		Symbol            string  `json:"symbol"`
+		Description       string  `json:"description"`
+		Type              string  `json:"type"`
+		Subtype           string  `json:"subtype"`
+		Currency          string  `json:"currency"`
+		CurrencyPrecision int     `json:"currencyPrecision"`
+		Precision         int     `json:"precision"`
+		PipsSize          int     `json:"pipsSize"`
+		QuantityIncrement float64 `json:"quantityIncrement"`
+		QuantityPrecision int     `json:"quantityPrecision"`
+		PriceIncrement    float64 `json:"priceIncrement"`
+		Version           int     `json:"version"`
+		PriceIncrementsTO struct {
+			PriceIncrements []float64 `json:"priceIncrements"`
+			PricePrecisions []int     `json:"pricePrecisions"`
+			BondFraction    bool      `json:"bondFraction"`
+		} `json:"priceIncrementsTO"`
+		LotSize              int         `json:"lotSize"`
+		BaseCurrency         interface{} `json:"baseCurrency"`
+		LotName              interface{} `json:"lotName"`
+		Multiplier           int         `json:"multiplier"`
+		Open                 bool        `json:"open"`
+		Expiration           interface{} `json:"expiration"`
+		FirstNoticeDate      interface{} `json:"firstNoticeDate"`
+		InitialMargin        string      `json:"initialMargin"`
+		MaintenanceMargin    string      `json:"maintenanceMargin"`
+		LastTradeDate        interface{} `json:"lastTradeDate"`
+		Underlying           interface{} `json:"underlying"`
+		Mmy                  interface{} `json:"mmy"`
+		OptionParametersTO   interface{} `json:"optionParametersTO"`
+		UnitName             interface{} `json:"unitName"`
+		AdditionalFields     interface{} `json:"additionalFields"`
+		AdditionalObject     interface{} `json:"additionalObject"`
+		CurrencyParametersTO interface{} `json:"currencyParametersTO"`
+		TradingHours         string      `json:"tradingHours"`
+	} `json:"instrument"`
+	ExecutionKeyId       int         `json:"executionKeyId"`
+	NetPl                interface{} `json:"netPl"`
+	GrossPl              interface{} `json:"grossPl"`
+	AdditionalParameters interface{} `json:"additionalParameters"`
 }
