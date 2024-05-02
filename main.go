@@ -313,7 +313,6 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 			fmt.Println(err)
 			return ""
 		}
-		fmt.Println(string(message))
 		if strings.Contains(string(message), kill) {
 			return string(message)
 		}
