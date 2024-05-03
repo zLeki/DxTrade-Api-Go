@@ -1,3 +1,4 @@
+<h4>Currently unusable due to cloudflare being added overnight</h4>
 # Dxtrade API
 The FIRST (usable) API for Dxtrade
 ## Demo in action
