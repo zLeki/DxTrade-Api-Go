@@ -612,6 +612,7 @@ func (i *Identity) CancelAllOrders() {
 
 }
 func (i *Identity) TradeHistory() []TradeHistory {
+	i.Login()
 	url := "https://dxtrade." + i.Server + ".com/api/history?from=1708664400000&to=1714708799999&orderId="
 	method := "POST"
 
