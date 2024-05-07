@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -277,16 +277,23 @@ func (i *Identity) Login() {
 	i.EstablishHandshake()
 }
 func (i *Identity) GetTransactions() *Positions {
-	inc_msg := strings.Split(i.EstablishHandshake("POSITIONS"), "|")
-	if len(inc_msg) < 2 {
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", "https://api.zenrows.com/v1/?apikey=1b2fc1d6e36056f654f04013fdc523a8031481cc&url=https%3A%2F%2Fdxtrade.ftmo.com&js_render=true&js_instructions=%255B%257B%2522fill%2522%253A%255B%2522%2523username%2522%252C%2522"+i.Username+"%2522%255D%257D%252C%257B%2522fill%2522%253A%255B%2522%2523password%2522%252C%2522X%253F2*GS%2524p%25409k%2522%255D%257D%252C%257B%2522click%2522%253A%2522%2523submitLogin%2522%257D%252C%257B%2522wait%2522%253A6000%257D%252C%257B%2522evaluate%2522%253A%2522class%2520Identity%257Bconstructor%28e%252Ct%252Co%252Cs%29%257Bthis.username%253De%252Cthis.password%253Dt%252Cthis.vendor%253Do%252Cthis.cookies%253D%257B%257D%252Cthis.csrf%253D%255C%2522%255C%2522%257Dasync%2520getPositions%28%29%257Bvar%2520e%253Dawait%2520this.linkWs%28%255C%2522POSITIONS%255C%2522%29%253Breturn%2520new%2520Promise%28%28t%252Co%29%253D%253E%257Bt%28e.toString%28%29.split%28%255C%2522%257C%255C%2522%29%255B1%255D%29%257D%29%257DlinkWs%28e%29%257Breturn%2520new%2520Promise%28%28t%252Co%29%253D%253E%257Blet%2520s%253D%2560wss%253A%252F%252Fdxtrade.%2524%257Bthis.vendor%257D.com%252Fclient%252Fconnector%253FX-Atmosphere-tracking-id%253D0%2526X-Atmosphere-Framework%253D2.3.2-javascript%2526X-Atmosphere-Transport%253Dwebsocket%2526X-Atmosphere-TrackMessageSize%253Dtrue%2526Content-Type%253Dtext%252Fx-gwt-rpc%253B%252520charset%253DUTF-8%2526X-atmo-protocol%253Dtrue%2526sessionState%253Ddx-new%2526guest-mode%253Dfalse%2560%252Cn%253Dnew%2520WebSocket%28s%29%253Bn.onopen%253D%28%29%253D%253E%257Bconsole.log%28%255C%2522WebSocket%2520connection%2520established.%255C%2522%29%257D%252Cn.onerror%253De%253D%253E%257Bconsole.error%28%255C%2522WebSocket%2520error%253A%255C%2522%252Ce%29%252Co%28e%29%257D%252Cn.onmessage%253Do%253D%253E%257Bo.data.includes%28e%29%2526%2526%28n.close%28%29%252Ct%28o.data%29%29%257D%252Cn.onclose%253D%28%29%253D%253E%257Bconsole.log%28%255C%2522WebSocket%2520connection%2520closed.%255C%2522%29%252Ct%28null%29%257D%257D%29%257D%257Dconst%2520identity%253Dnew%2520Identity%28%255C%2522"+i.Username+"%255C%2522%252C%255C%2522PASSWORDPLACEHOLDER%255C%2522%252C%255C%2522ftmo%255C%2522%29%253B%28async%28%29%253D%253E%257Bdocument.body.innerHTML%253Dawait%2520identity.getPositions%28%29%257D%29%28%29%253B%2522%257D%255D", nil)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		log.Fatalln(errors.New("Failed to fetch transactions"))
 		return nil
 	}
-	inc_msg2 := inc_msg[1]
+	newBody := strings.ReplaceAll(strings.Split(string(body), "<body>")[2], "</body></html>", "")
 	var positions *Positions
-	err := json.Unmarshal([]byte(inc_msg2), &positions)
+	err = json.Unmarshal([]byte(newBody), &positions)
 	if err != nil {
-		fmt.Println(err)
-		return nil
+		log.Fatalln(err)
 	}
 	return positions
 
@@ -319,12 +326,13 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 	}
 	return ""
 }
-func (i *Identity) Buy(Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
-	i.ExecuteOrder(BUY, Quantity, Price, TakeProfit, StopLoss, symbol, instrumentId)
-}
-func (i *Identity) Sell(Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
-	i.ExecuteOrder(SELL, -Quantity, Price, TakeProfit, StopLoss, symbol, instrumentId)
-}
+
+//func (i *Identity) Buy(Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
+//	i.ExecuteOrder(BUY, Quantity, Price, TakeProfit, StopLoss, symbol, instrumentId)
+//}
+//func (i *Identity) Sell(Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
+//	i.ExecuteOrder(SELL, -Quantity, Price, TakeProfit, StopLoss, symbol, instrumentId)
+//}
 
 type ExecutePayload struct {
 	DirectExchange bool `json:"directExchange"`
@@ -361,135 +369,57 @@ type ExecutePayload struct {
 func (i *Identity) CloseAllPositions() {
 	positions := i.GetTransactions()
 	for _, position := range positions.Body {
-		i.ClosePosition(position.PositionKey.PositionCode, position.Quantity, 0, position.PositionKey.PositionCode, position.PositionKey.InstrumentId)
+		position2 := position
+		go func() {
+			i.ClosePosition(position2.PositionKey.PositionCode, position2.Quantity, 0, position2.PositionKey.PositionCode, position2.PositionKey.InstrumentId)
+		}()
 	}
 }
 func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price float64, symbol string, instrumentId int) {
-	url := "https://dxtrade." + i.Server + ".com/api/positions/close"
-	method := "POST"
-	var payload ClosePosition
-	legs := make([]struct {
-		InstrumentId   int    `json:"instrumentId"`
-		PositionCode   string `json:"positionCode"`
-		PositionEffect string `json:"positionEffect"`
-		RatioQuantity  int    `json:"ratioQuantity"`
-		Symbol         string `json:"symbol"`
-	}, 1)
-	legs[0].InstrumentId = instrumentId
-	legs[0].PositionCode = PositionId
-	legs[0].PositionEffect = "CLOSING"
-	legs[0].RatioQuantity = 1
-	legs[0].Symbol = symbol
-	payload.Legs = legs
-	payload.LimitPrice = 0
-	payload.OrderType = "MARKET"
-	payload.Quantity = -Quantity
-	payload.TimeInForce = "GTC"
+	QuantityString := strconv.FormatFloat(Quantity, 'f', -1, 64)
+	PriceString := strconv.FormatFloat(Price, 'f', -1, 64)
+	instrumentIdString := strconv.Itoa(instrumentId)
 	client := &http.Client{}
-	payloadJson, err := json.Marshal(payload)
+	url := "https://api.zenrows.com/v1/?apikey=1b2fc1d6e36056f654f04013fdc523a8031481cc&url=https%3A%2F%2Fdxtrade.ftmo.com&js_render=true&js_instructions=%255B%257B%2522fill%2522%253A%255B%2522%2523username%2522%252C%2522" + i.Username + "%2522%255D%257D%252C%257B%2522fill%2522%253A%255B%2522%2523password%2522%252C%2522X%253F2*GS%2524p%25409k%2522%255D%257D%252C%257B%2522click%2522%253A%2522%2523submitLogin%2522%257D%252C%257B%2522wait%2522%253A6000%257D%252C%257B%2522evaluate%2522%253A%2522const%2520API_BASE_URL%253D%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%252Fapi%255C%2522%253Bclass%2520Identity%257Bconstructor%28t%252Ce%252Ci%252Co%29%257Bthis.username%253Dt%252Cthis.password%253De%252Cthis.vendor%253Di%252Cthis.cookies%253D%257B%257D%252Cthis.csrf%253D%255C%2522%255C%2522%257Dasync%2520fetchCSRF%28%29%257Blet%2520t%253Dawait%2520fetch%28%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%255C%2522%252C%257Bmethod%253A%255C%2522GET%255C%2522%252Cheaders%253A%257BAccept%253A%255C%2522text%252Fhtml%252Capplication%252Fxhtml%252Bxml%252Capplication%252Fxml%253Bq%253D0.9%252Cimage%252Fwebp%252Cimage%252Fapng%252C*%252F*%253Bq%253D0.8%255C%2522%252C%255C%2522Accept-Language%255C%2522%253A%255C%2522en-US%252Cen%253Bq%253D0.9%255C%2522%252C%255C%2522Cache-Control%255C%2522%253A%255C%2522no-cache%255C%2522%252CCookie%253A%2560DXTFID%253D%2524%257Bthis.cookies.DXTFID%257D%253B%2520JSESSIONID%253D%2524%257Bthis.cookies.JSESSIONID%257D%2560%257D%257D%29%252Ce%253Dawait%2520t.text%28%29%252Ci%253De.match%28%252Fname%253D%255C%2522csrf%255C%2522%2520content%253D%255C%2522%28%255B%255E%255C%2522%255D%252B%29%255C%2522%252F%29%253Bi%2526%2526%28this.csrf%253Di%255B1%255D%29%257Dasync%2520closePosition%28t%252Ce%252Ci%252Co%252Cs%29%257Blet%2520a%253DJSON.stringify%28%257Blegs%253A%255B%257BinstrumentId%253As%252CpositionCode%253At%252CpositionEffect%253A%255C%2522CLOSING%255C%2522%252CratioQuantity%253A1%252Csymbol%253Ao%257D%255D%252ClimitPrice%253A0%252CorderType%253A%255C%2522MARKET%255C%2522%252Cquantity%253A-e%252CtimeInForce%253A%255C%2522GTC%255C%2522%257D%29%252Cc%253Dawait%2520fetch%28%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%252Fapi%252Fpositions%252Fclose%255C%2522%252C%257Bmethod%253A%255C%2522POST%255C%2522%252Cheaders%253A%257B%255C%2522Content-Type%255C%2522%253A%255C%2522application%252Fjson%253B%2520charset%253DUTF-8%255C%2522%252C%255C%2522X-CSRF-Token%255C%2522%253Athis.csrf%252C%255C%2522X-Requested-With%255C%2522%253A%255C%2522XMLHttpRequest%255C%2522%257D%252Cbody%253Aa%257D%29%253Bc.ok%253Fconsole.log%28%255C%2522Position%2520closed%2520successfully%255C%2522%29%253Aconsole.error%28%255C%2522Failed%2520to%2520close%2520position%253A%255C%2522%252Cc.status%252Cawait%2520c.text%28%29%29%257D%257Dconst%2520identity%253Dnew%2520Identity%28%255C%2522USERNAMEPLACEHOLDER%255C%2522%252C%255C%2522PASSWORDPLACEHOLDER%255C%2522%252C%255C%2522ftmo%255C%2522%29%253B%28async%28%29%253D%253E%257Bawait%2520identity.fetchCSRF%28%29%252Cawait%2520identity.closePosition%28" + PositionId + "%252C" + QuantityString + "%252C" + PriceString + "%252C%255C%2522" + symbol + "%255C%2522%252C" + instrumentIdString + "%29%257D%29%28%29%253B%2522%257D%255D"
+	fmt.Println(url)
+	req, err := http.NewRequest("GET", url, nil)
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalln(err)
 	}
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(payloadJson))
-
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	req.Header.Add("content-type", "application/json; charset=UTF-8")
-	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	req.Header.Add("x-csrf-token", i.FetchCSRF())
-	req.Header.Add("x-requested-with", "XMLHttpRequest")
-
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer res.Body.Close()
-	fmt.Println(res.Status)
+	defer resp.Body.Close()
 }
-func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
-	var executePayload ExecutePayload
-	executePayload.DirectExchange = false
-	executePayload.Legs = make([]struct {
-		InstrumentId   int    `json:"instrumentId"`
-		PositionEffect string `json:"positionEffect"`
-		RatioQuantity  int    `json:"ratioQuantity"`
-		Symbol         string `json:"symbol"`
-	}, 1)
-
-	// The generated request ID gwt-uid-931-08b3a3e1-5e92-4db9-9b32-049777c03e17
-	executePayload.Legs[0].Symbol = symbol
-	executePayload.Legs[0].InstrumentId = instrumentId
-	executePayload.Legs[0].PositionEffect = "OPENING"
-	executePayload.Legs[0].RatioQuantity = 1
-	switch Price {
-	case -1:
-		executePayload.DirectExchange = false
-		executePayload.LimitPrice = 0
-		executePayload.OrderType = "MARKET"
-	default:
-		executePayload.DirectExchange = false
-		executePayload.LimitPrice = Price
-		executePayload.OrderType = "LIMIT"
-	}
-	switch Method {
-	case BUY:
-		executePayload.OrderSide = "BUY"
-	case SELL:
-		executePayload.OrderSide = "SELL"
-	}
-	if TakeProfit != 0 {
-		executePayload.TakeProfit.FixedOffset = 0
-		executePayload.TakeProfit.FixedPrice = TakeProfit
-		executePayload.TakeProfit.OrderType = "LIMIT"
-		executePayload.TakeProfit.PriceFixed = true
-		executePayload.TakeProfit.QuantityForProtection = Quantity
-		executePayload.TakeProfit.Removed = false
-	}
-	if StopLoss != 0 {
-		executePayload.StopLoss.FixedOffset = 0
-		executePayload.StopLoss.FixedPrice = StopLoss
-		executePayload.StopLoss.OrderType = "STOP"
-		executePayload.StopLoss.PriceFixed = true
-		executePayload.StopLoss.QuantityForProtection = Quantity
-		executePayload.StopLoss.Removed = false
-	}
-	executePayload.Quantity = Quantity
-	executePayload.TimeInForce = "GTC"
-	//931-08b3a3e1-5e92-4db9-9b32-049777c03e17
-	executePayload.RequestId = "gwt-uid-931-" + uuid.New().String()
-	url := "https://dxtrade." + i.Server + ".com/api/orders/single"
-	method := "POST"
-
-	payload, err := json.Marshal(executePayload)
-	if StopLoss == 0 && TakeProfit == 0 {
-		payload = []byte(strings.ReplaceAll(string(payload), ",\"stopLoss\":{\"fixedOffset\":0,\"fixedPrice\":0,\"orderType\":\"\",\"priceFixed\":false,\"quantityForProtection\":0,\"removed\":false},\"takeProfit\":{\"fixedOffset\":0,\"fixedPrice\":0,\"orderType\":\"\",\"priceFixed\":false,\"quantityForProtection\":0,\"removed\":false}", ""))
-	}
+func (i *Identity) ExecuteOrder(Method int, Quantity float64, symbol string, instrumentId int) {
 	client := &http.Client{}
-	req, err := http.NewRequest(method, url, bytes.NewBuffer(payload))
+	var method string
+	if Method == BUY {
+		method = "BUY"
+	} else {
+		method = "SELL"
+	}
+	if method == "SELL" {
+		Quantity = -Quantity
+
+	}
+	quantityToString := strconv.FormatFloat(Quantity, 'f', -1, 64)
+	instrumentIdToString := strconv.Itoa(instrumentId)
+	url := "https://api.zenrows.com/v1/?apikey=1b2fc1d6e36056f654f04013fdc523a8031481cc&url=https%3A%2F%2Fdxtrade.ftmo.com%2F&js_render=true&js_instructions=%255B%257B%2522fill%2522%253A%255B%2522%2523username%2522%252C%2522" + i.Username + "%2522%255D%257D%252C%257B%2522fill%2522%253A%255B%2522%2523password%2522%252C%2522X%253F2*GS%2524p%25409k%2522%255D%257D%252C%257B%2522click%2522%253A%2522%2523submitLogin%2522%257D%252C%257B%2522wait%2522%253A6000%257D%252C%257B%2522evaluate%2522%253A%2522const%2520API_BASE_URL%253D%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%252Fapi%255C%2522%252CBUY%253D0%252CSELL%253D1%253Bclass%2520Identity%257Bconstructor%28t%252Ce%252Ci%252Cs%29%257Bthis.username%253Dt%252Cthis.password%253De%252Cthis.vendor%253Di%252Cthis.cookies%253D%257B%257D%252Cthis.csrf%253D%255C%2522%255C%2522%257Dasync%2520fetchCSRF%28%29%257Blet%2520t%253Dawait%2520fetch%28%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%255C%2522%252C%257Bmethod%253A%255C%2522GET%255C%2522%252Cheaders%253A%257BAccept%253A%255C%2522text%252Fhtml%252Capplication%252Fxhtml%252Bxml%252Capplication%252Fxml%253Bq%253D0.9%252Cimage%252Fwebp%252Cimage%252Fapng%252C*%252F*%253Bq%253D0.8%255C%2522%252C%255C%2522Accept-Language%255C%2522%253A%255C%2522en-US%252Cen%253Bq%253D0.9%255C%2522%252C%255C%2522Cache-Control%255C%2522%253A%255C%2522no-cache%255C%2522%252CCookie%253A%2560DXTFID%253D%2524%257Bthis.cookies.DXTFID%257D%253B%2520JSESSIONID%253D%2524%257Bthis.cookies.JSESSIONID%257D%2560%257D%257D%29%252Ce%253Dawait%2520t.text%28%29%252Ci%253De.match%28%252Fname%253D%255C%2522csrf%255C%2522%2520content%253D%255C%2522%28%255B%255E%255C%2522%255D%252B%29%255C%2522%252F%29%253Bi%2526%2526%28this.csrf%253Di%255B1%255D%29%257DuuidV4%28%29%257Breturn%255C%252210000000-1000-4000-8000-100000000000%255C%2522.replace%28%252F%255B018%255D%252Fg%252Ct%253D%253E%28t%255Ecrypto.getRandomValues%28new%2520Uint8Array%281%29%29%255B0%255D%252615%253E%253Et%252F4%29.toString%2816%29%29%257Dasync%2520executeOrder%28t%252Ce%252Ci%252Cs%29%257Blet%2520a%253DJSON.stringify%28%257BdirectExchange%253A%211%252Clegs%253A%255B%257BinstrumentId%253As%252CpositionEffect%253A%255C%2522OPENING%255C%2522%252CratioQuantity%253A1%252Csymbol%253Ai%257D%255D%252ClimitPrice%253A0%252CorderSide%253A0%253D%253D%253Dt%253F%255C%2522BUY%255C%2522%253A%255C%2522SELL%255C%2522%252CorderType%253A%255C%2522MARKET%255C%2522%252Cquantity%253Ae%252CrequestId%253A%2560gwt-uid-931-%2524%257Bthis.uuidV4%28%29%257D%2560%252CtimeInForce%253A%255C%2522GTC%255C%2522%257D%29%252Co%253Dawait%2520fetch%28%255C%2522https%253A%252F%252Fdxtrade.ftmo.com%252Fapi%252Forders%252Fsingle%255C%2522%252C%257Bmethod%253A%255C%2522POST%255C%2522%252Cheaders%253A%257B%255C%2522Content-Type%255C%2522%253A%255C%2522application%252Fjson%253B%2520charset%253DUTF-8%255C%2522%252C%255C%2522X-CSRF-Token%255C%2522%253Athis.csrf%252C%255C%2522X-Requested-With%255C%2522%253A%255C%2522XMLHttpRequest%255C%2522%257D%252Cbody%253Aa%257D%29%253Bo.ok%253Fconsole.log%28%255C%2522Order%2520executed%2520successfully%255C%2522%29%253Aconsole.error%28%255C%2522Failed%2520to%2520execute%2520order%253A%255C%2522%252Co.status%29%257D%257Dconst%2520identity%253Dnew%2520Identity%28%255C%2522" + i.Password + "%255C%2522%252C%255C%2522" + i.Username + "%255C%2522%252C%255C%2522" + i.Server + "%255C%2522%29%253B%28async%28%29%253D%253E%257Bawait%2520identity.fetchCSRF%28%29%252Cawait%2520identity.executeOrder%28" + method + "%252C" + quantityToString + "%252C%255C%2522" + symbol + "%255C%2522%252C" + instrumentIdToString + "%29%257D%29%28%29%253B%2522%257D%255D"
+	fmt.Println(url)
+	req, err := http.NewRequest("GET", url, nil)
+	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println(err)
-		return
+		log.Fatalln(err)
 	}
-	req.Header.Add("content-type", "application/json; charset=UTF-8")
-	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	req.Header.Add("x-csrf-token", i.FetchCSRF())
-	req.Header.Add("x-requested-with", "XMLHttpRequest")
-	// Fetch csrf document.querySelector('meta[name="csrf"]'))
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	if res.StatusCode != http.StatusOK {
-		fmt.Println(req.Header)
-		fmt.Println(string(payload), res.Status)
-	}
-	defer res.Body.Close()
+	defer resp.Body.Close()
+	//
+	//body, err := io.ReadAll(resp.Body)
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	//
+	//log.Println(string(body))
 }
+
 func (i *Identity) FetchCSRF() string {
 	url := "https://dxtrade." + i.Server + ".com/"
 	method := "GET"
@@ -611,37 +541,6 @@ func (i *Identity) CancelAllOrders() {
 	}
 
 }
-func (i *Identity) TradeHistory() []TradeHistory {
-	i.Login()
-	url := "https://dxtrade." + i.Server + ".com/api/history?from=1708664400000&to=1714708799999&orderId="
-	method := "POST"
-
-	client := &http.Client{}
-	req, err := http.NewRequest(method, url, nil)
-
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	req.Header.Add("content-type", "application/json; charset=UTF-8")
-	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	req.Header.Add("x-csrf-token", i.FetchCSRF())
-	req.Header.Add("x-requested-with", "XMLHttpRequest")
-
-	res, err := client.Do(req)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	defer res.Body.Close()
-	var tradeHistory []TradeHistory
-	err = json.NewDecoder(res.Body).Decode(&tradeHistory)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	return tradeHistory
-}
 func (i *Identity) CandleStickProcess(symbol string) (*CandleStickData, error) {
 retry:
 	var dataStr string
@@ -752,8 +651,6 @@ func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
 	*/
 
 }
-
-// Identical to the one above but with a different return type
 
 // Couldnt get it to work, some weird api update but if you want to give it a shot you need to be able to find the refOrderChainId
 //
@@ -1140,71 +1037,4 @@ type CandleStickData struct {
 		RequestID int `json:"requestId"`
 	} `json:"body"`
 	Type string `json:"type"`
-}
-type TradeHistory struct {
-	Id                string      `json:"id"`
-	SequenceNumber    int         `json:"sequenceNumber"`
-	OrderChainId      string      `json:"orderChainId"`
-	AccountId         string      `json:"accountId"`
-	LastStatusChange  int64       `json:"lastStatusChange"`
-	Symbol            string      `json:"symbol"`
-	Status            string      `json:"status"`
-	Quantity          float64     `json:"quantity"`
-	RemainingQuantity float64     `json:"remainingQuantity"`
-	FilledQuantity    interface{} `json:"filledQuantity"`
-	Type              string      `json:"type"`
-	TriggerPrice      string      `json:"triggerPrice"`
-	FillPrice         interface{} `json:"fillPrice"`
-	Price             string      `json:"price"`
-	AccountCode       string      `json:"accountCode"`
-	TakeProfitPrice   string      `json:"takeProfitPrice"`
-	ExpireAt          interface{} `json:"expireAt"`
-	TimeInForce       string      `json:"timeInForce"`
-	StopLossPrice     string      `json:"stopLossPrice"`
-	Commission        struct {
-	} `json:"commission"`
-	Side         string      `json:"side"`
-	RejectReason interface{} `json:"rejectReason"`
-	Instrument   struct {
-		Id                int     `json:"id"`
-		Symbol            string  `json:"symbol"`
-		Description       string  `json:"description"`
-		Type              string  `json:"type"`
-		Subtype           string  `json:"subtype"`
-		Currency          string  `json:"currency"`
-		CurrencyPrecision int     `json:"currencyPrecision"`
-		Precision         int     `json:"precision"`
-		PipsSize          int     `json:"pipsSize"`
-		QuantityIncrement float64 `json:"quantityIncrement"`
-		QuantityPrecision int     `json:"quantityPrecision"`
-		PriceIncrement    float64 `json:"priceIncrement"`
-		Version           int     `json:"version"`
-		PriceIncrementsTO struct {
-			PriceIncrements []float64 `json:"priceIncrements"`
-			PricePrecisions []int     `json:"pricePrecisions"`
-			BondFraction    bool      `json:"bondFraction"`
-		} `json:"priceIncrementsTO"`
-		LotSize              int         `json:"lotSize"`
-		BaseCurrency         interface{} `json:"baseCurrency"`
-		LotName              interface{} `json:"lotName"`
-		Multiplier           int         `json:"multiplier"`
-		Open                 bool        `json:"open"`
-		Expiration           interface{} `json:"expiration"`
-		FirstNoticeDate      interface{} `json:"firstNoticeDate"`
-		InitialMargin        string      `json:"initialMargin"`
-		MaintenanceMargin    string      `json:"maintenanceMargin"`
-		LastTradeDate        interface{} `json:"lastTradeDate"`
-		Underlying           interface{} `json:"underlying"`
-		Mmy                  interface{} `json:"mmy"`
-		OptionParametersTO   interface{} `json:"optionParametersTO"`
-		UnitName             interface{} `json:"unitName"`
-		AdditionalFields     interface{} `json:"additionalFields"`
-		AdditionalObject     interface{} `json:"additionalObject"`
-		CurrencyParametersTO interface{} `json:"currencyParametersTO"`
-		TradingHours         string      `json:"tradingHours"`
-	} `json:"instrument"`
-	ExecutionKeyId       int         `json:"executionKeyId"`
-	NetPl                interface{} `json:"netPl"`
-	GrossPl              interface{} `json:"grossPl"`
-	AdditionalParameters interface{} `json:"additionalParameters"`
 }
