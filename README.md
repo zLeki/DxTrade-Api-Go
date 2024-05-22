@@ -1,4 +1,5 @@
-<h4>Currently unusable due to cloudflare being added overnight fix underway (check other branch)</h4>
+<h4>~~Currently unusable due to cloudflare being added overnight fix underway (check other branch)~~</h4>
+<h4>Issue fixed with cloudflare but requires an api key from ZenRows</h4>
 
 # Dxtrade API 
 The FIRST (usable) API for Dxtrade
