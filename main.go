@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"io"
+	"strconv"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -611,9 +612,17 @@ func (i *Identity) CancelAllOrders() {
 	}
 
 }
+func getTodayTimestampMs() int64 {
+	now := time.Now()
+	timestampMs := now.UnixNano() / int64(time.Millisecond)
+	return timestampMs
+}
+
 func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
-	url := "https://dxtrade." + i.Server + ".com/api/history?from=1708664400000&to=1714708799999&orderId="
+	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
+	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 259200000))
+	url := "https://dxtrade." + i.Server + ".com/api/history?from="+TdaysagoTimeStampMs+"&to="+timestampMs+"&orderId="
 	method := "POST"
 
 	client := &http.Client{}
