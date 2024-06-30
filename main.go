@@ -277,17 +277,17 @@ func (i *Identity) Login() {
 	}
 	i.EstablishHandshake()
 }
-func (i *Identity) GetTransactions() Positions {
+func (i *Identity) GetTransactions() *Positions {
 	inc_msg := strings.Split(i.EstablishHandshake("POSITIONS"), "|")
 	if len(inc_msg) < 2 {
-		return Positions{}
+		return nil
 	}
 	inc_msg2 := inc_msg[1]
-	var positions Positions
+	var positions *Positions
 	err := json.Unmarshal([]byte(inc_msg2), &positions)
 	if err != nil {
 		fmt.Println(err)
-		return Positions{}
+		return nil
 	}
 	return positions
 
@@ -621,7 +621,7 @@ func getTodayTimestampMs() int64 {
 func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
 	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
-	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 1814400000))
+	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 259200000))
 	url := "https://dxtrade." + i.Server + ".com/api/history?from="+TdaysagoTimeStampMs+"&to="+timestampMs+"&orderId="
 	method := "POST"
 
@@ -910,8 +910,8 @@ type PositionMetrix struct {
 		Margin           float64 `json:"margin"`
 		PlOpen           float64 `json:"plOpen"`
 		PlClosed         int     `json:"plClosed"`
-		TotalCommissions float64 `json:"totalCommissions"`
-		TotalFinancing   float64 `json:"totalFinancing"`
+		TotalCommissions interface{} `json:"totalCommissions"`
+		TotalFinancing   interface{} `json:"totalFinancing"`
 		PlRate           float64 `json:"plRate"`
 	} `json:"body"`
 	Type string `json:"type"`
