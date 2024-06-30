@@ -277,17 +277,17 @@ func (i *Identity) Login() {
 	}
 	i.EstablishHandshake()
 }
-func (i *Identity) GetTransactions() *Positions {
+func (i *Identity) GetTransactions() Positions {
 	inc_msg := strings.Split(i.EstablishHandshake("POSITIONS"), "|")
 	if len(inc_msg) < 2 {
-		return nil
+		return Positions{}
 	}
 	inc_msg2 := inc_msg[1]
-	var positions *Positions
+	var positions Positions
 	err := json.Unmarshal([]byte(inc_msg2), &positions)
 	if err != nil {
 		fmt.Println(err)
-		return nil
+		return Positions{}
 	}
 	return positions
 
@@ -1183,7 +1183,6 @@ type TradeHistory struct {
 		Currency          string  `json:"currency"`
 		CurrencyPrecision int     `json:"currencyPrecision"`
 		Precision         int     `json:"precision"`
-		PipsSize          int     `json:"pipsSize"`
 		QuantityIncrement float64 `json:"quantityIncrement"`
 		QuantityPrecision int     `json:"quantityPrecision"`
 		PriceIncrement    float64 `json:"priceIncrement"`
