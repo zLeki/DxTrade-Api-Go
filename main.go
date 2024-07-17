@@ -1164,7 +1164,6 @@ type TradeHistory struct {
 	Type              string      `json:"type"`
 	TriggerPrice      string      `json:"triggerPrice"`
 	FillPrice         interface{} `json:"fillPrice"`
-	Price             string      `json:"price"`
 	AccountCode       string      `json:"accountCode"`
 	TakeProfitPrice   string      `json:"takeProfitPrice"`
 	ExpireAt          interface{} `json:"expireAt"`
