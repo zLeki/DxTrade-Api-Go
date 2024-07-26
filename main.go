@@ -8,10 +8,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"io"
-	"strconv"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -426,7 +426,8 @@ type CloseStruct struct {
 	Quantity    float64 `json:"quantity"`
 	TimeInForce string  `json:"timeInForce"`
 }
-func (i *Identity) CloseOrder(InstrumentId int, PositionCode, Symbol string, Quantity float64) error {
+
+func (i *Identity) PartialClose(InstrumentId int, PositionCode, Symbol string, Quantity float64) error {
 	//https://dxtrade.ftmo.com/api/positions/close
 	url := "https://dxtrade." + i.Server + ".com/api/positions/close"
 	method := "POST"
@@ -453,6 +454,10 @@ func (i *Identity) CloseOrder(InstrumentId int, PositionCode, Symbol string, Qua
 		return err
 	}
 	req, err := http.NewRequest(method, url, bytes.NewBuffer(payloadJson))
+	req.Header.Add("content-type", "application/json; charset=UTF-8")
+	req.Header.Add("cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
+	req.Header.Add("x-csrf-token", i.FetchCSRF())
+	req.Header.Add("x-requested-with", "XMLHttpRequest")
 	resp, err := client.Do(req)
 	if err != nil {
 		return err
@@ -671,7 +676,7 @@ func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
 	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
 	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 1719776080873))
-	url := "https://dxtrade." + i.Server + ".com/api/history?from="+TdaysagoTimeStampMs+"&to="+timestampMs+"&orderId="
+	url := "https://dxtrade." + i.Server + ".com/api/history?from=" + TdaysagoTimeStampMs + "&to=" + timestampMs + "&orderId="
 	method := "POST"
 
 	client := &http.Client{}
@@ -954,13 +959,14 @@ func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
 type PositionMetrix struct {
 	AccountId string `json:"accountId"`
 	Body      []struct {
-		Uid              string  `json:"uid"`
-		AccountId        string  `json:"accountId"`
-		Margin           float64 `json:"margin"`
-		PlOpen           float64 `json:"plOpen"`
+		Uid              string      `json:"uid"`
+		AccountId        string      `json:"accountId"`
+		Margin           float64     `json:"margin"`
+		PlOpen           float64     `json:"plOpen"`
+		PlClosed         int         `json:"plClosed"`
 		TotalCommissions interface{} `json:"totalCommissions"`
 		TotalFinancing   interface{} `json:"totalFinancing"`
-		PlRate           float64 `json:"plRate"`
+		PlRate           float64     `json:"plRate"`
 	} `json:"body"`
 	Type string `json:"type"`
 }
