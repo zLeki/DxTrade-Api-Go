@@ -277,6 +277,7 @@ func (i *Identity) Login() {
 	}
 	i.EstablishHandshake()
 }
+
 func (i *Identity) GetTransactions() Positions {
 	inc_msg := strings.Split(i.EstablishHandshake("POSITIONS"), "|")
 	if len(inc_msg) < 2 {
@@ -410,6 +411,54 @@ func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price floa
 	}
 	defer res.Body.Close()
 	fmt.Println(res.Status)
+}
+
+type CloseStruct struct {
+	Legs []struct {
+		InstrumentId   int    `json:"instrumentId"`
+		PositionCode   string `json:"positionCode"`
+		PositionEffect string `json:"positionEffect"`
+		RatioQuantity  int    `json:"ratioQuantity"`
+		Symbol         string `json:"symbol"`
+	} `json:"legs"`
+	LimitPrice  float64 `json:"limitPrice"`
+	OrderType   string  `json:"orderType"`
+	Quantity    float64 `json:"quantity"`
+	TimeInForce string  `json:"timeInForce"`
+}
+func (i *Identity) CloseOrder(InstrumentId int, PositionCode, Symbol string, Quantity float64) error {
+	//https://dxtrade.ftmo.com/api/positions/close
+	url := "https://dxtrade." + i.Server + ".com/api/positions/close"
+	method := "POST"
+	var payload CloseStruct
+	payload.Legs = make([]struct {
+		InstrumentId   int    `json:"instrumentId"`
+		PositionCode   string `json:"positionCode"`
+		PositionEffect string `json:"positionEffect"`
+		RatioQuantity  int    `json:"ratioQuantity"`
+		Symbol         string `json:"symbol"`
+	}, 1)
+	payload.Legs[0].InstrumentId = InstrumentId
+	payload.Legs[0].PositionCode = PositionCode
+	payload.Legs[0].PositionEffect = "CLOSING"
+	payload.Legs[0].RatioQuantity = 1
+	payload.Legs[0].Symbol = Symbol
+	payload.LimitPrice = 0
+	payload.OrderType = "MARKET"
+	payload.Quantity = Quantity // not auto
+	payload.TimeInForce = "GTC"
+	client := &http.Client{}
+	payloadJson, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(method, url, bytes.NewBuffer(payloadJson))
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	return nil
 }
 func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLoss float64, symbol string, instrumentId int) {
 	var executePayload ExecutePayload
@@ -621,7 +670,7 @@ func getTodayTimestampMs() int64 {
 func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
 	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
-	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 1719776080873))
+	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 259200000))
 	url := "https://dxtrade." + i.Server + ".com/api/history?from="+TdaysagoTimeStampMs+"&to="+timestampMs+"&orderId="
 	method := "POST"
 
