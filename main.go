@@ -958,7 +958,6 @@ type PositionMetrix struct {
 		AccountId        string  `json:"accountId"`
 		Margin           float64 `json:"margin"`
 		PlOpen           float64 `json:"plOpen"`
-		PlClosed         int     `json:"plClosed"`
 		TotalCommissions interface{} `json:"totalCommissions"`
 		TotalFinancing   interface{} `json:"totalFinancing"`
 		PlRate           float64 `json:"plRate"`
