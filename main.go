@@ -675,10 +675,10 @@ func getTodayTimestampMs() int64 {
 func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
 	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
-	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 259200000))
-	url := "https://dxtrade." + i.Server + ".com/api/history?from=" + TdaysagoTimeStampMs + "&to=" + timestampMs + "&orderId="
+	fiveDaysAgoTimestampMs := strconv.Itoa(int(getTodayTimestampMs() - 5*24*60*60*1000))
+	url := "https://dxtrade." + i.Server + ".com/api/history?from=" + fiveDaysAgoTimestampMs + "&to=" + timestampMs + "&orderId="
+	fmt.Println(url)
 	method := "POST"
-
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
 
