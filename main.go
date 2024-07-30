@@ -240,7 +240,7 @@ const (
 
 func (i *Identity) Login() {
 
-	url := "https://" + i.Server + "/api/auth/login"
+	url := "https://dxtrade." + i.Server + ".com/api/auth/login"
 	method := "POST"
 
 	payload, err := json.Marshal(i)
@@ -302,7 +302,7 @@ func (i *Identity) EstablishHandshake(kill_msg ...string) string {
 	dialer := websocket.Dialer{}
 	headers := http.Header{}
 	headers.Add("Cookie", "DXTFID="+i.Cookies["DXTFID"]+"; JSESSIONID="+i.Cookies["JSESSIONID"])
-	conn, _, err := dialer.Dial("wss://"+i.Server+"/client/connector?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3.2-javascript&X-Atmosphere-Transport=websocket&X-Atmosphere-TrackMessageSize=true&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-atmo-protocol=true&sessionState=dx-new&guest-mode=false", headers)
+	conn, _, err := dialer.Dial("wss://dxtrade."+i.Server+".com/client/connector?X-Atmosphere-tracking-id=0&X-Atmosphere-Framework=2.3.2-javascript&X-Atmosphere-Transport=websocket&X-Atmosphere-TrackMessageSize=true&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-atmo-protocol=true&sessionState=dx-new&guest-mode=false", headers)
 	if err != nil {
 		fmt.Println(err)
 		return ""
@@ -367,7 +367,7 @@ func (i *Identity) CloseAllPositions() {
 	}
 }
 func (i *Identity) ClosePosition(PositionId string, Quantity float64, Price float64, symbol string, instrumentId int) {
-	url := "https://" + i.Server + "/api/positions/close"
+	url := "https://dxtrade." + i.Server + ".com/api/positions/close"
 	method := "POST"
 	var payload ClosePosition
 	legs := make([]struct {
@@ -516,7 +516,7 @@ func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLos
 	executePayload.TimeInForce = "GTC"
 	//931-08b3a3e1-5e92-4db9-9b32-049777c03e17
 	executePayload.RequestId = "gwt-uid-931-" + uuid.New().String()
-	url := "https://" + i.Server + "/api/orders/single"
+	url := "https://dxtrade." + i.Server + ".com/api/orders/single"
 	method := "POST"
 
 	payload, err := json.Marshal(executePayload)
@@ -543,11 +543,10 @@ func (i *Identity) ExecuteOrder(Method int, Quantity, Price, TakeProfit, StopLos
 		fmt.Println(req.Header)
 		fmt.Println(string(payload), res.Status)
 	}
-	fmt.Println(string(payload), res.Status)
 	defer res.Body.Close()
 }
 func (i *Identity) FetchCSRF() string {
-	url := "https://" + i.Server + "/"
+	url := "https://dxtrade." + i.Server + ".com/"
 	method := "GET"
 
 	client := &http.Client{}
@@ -676,10 +675,10 @@ func getTodayTimestampMs() int64 {
 func (i *Identity) TradeHistory() []TradeHistory {
 	i.Login()
 	timestampMs := strconv.Itoa(int(getTodayTimestampMs()))
-	fiveDaysAgoTimestampMs := strconv.Itoa(int(getTodayTimestampMs() - 5*24*60*60*1000))
-	url := "https://" + i.Server + "/api/history?from=" + fiveDaysAgoTimestampMs + "&to=" + timestampMs + "&orderId="
-	fmt.Println(url)
+	TdaysagoTimeStampMs := strconv.Itoa(int(getTodayTimestampMs() - 1719776080873))
+	url := "https://dxtrade." + i.Server + ".com/api/history?from=" + TdaysagoTimeStampMs + "&to=" + timestampMs + "&orderId="
 	method := "POST"
+
 	client := &http.Client{}
 	req, err := http.NewRequest(method, url, nil)
 
@@ -921,7 +920,7 @@ func (i *Identity) GetCandleStickData(sym string) *CandleStickData {
 //		}
 //		payload.TimeInForce = "GTC"
 //		payload.RequestId = "gwt-uid-2553-" + uuid.New().String()
-//		url := "https://"+i.Server+"/api/orders/single"
+//		url := "https://dxtrade." + i.Server + ".com/api/orders/single"
 //		var payloadJson []byte
 //		payloadJson, err := json.Marshal(payload)
 //		fmt.Println(string(payloadJson))
