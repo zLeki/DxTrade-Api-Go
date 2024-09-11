@@ -1,9 +1,3 @@
-~~Currently unusable due to cloudflare being added overnight fix underway (check other branch)~~
-<br>
-~~Issue fixed with cloudflare but requires an api key from ZenRows~~
-<br>
-FTMO has reverted the cloudflare change
-
 # Dxtrade API 
 The FIRST (usable) API for Dxtrade
 ## Demo in action
